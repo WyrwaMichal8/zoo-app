@@ -1,35 +1,74 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like } from 'typeorm';
 import { Species } from './entities/species.entity';
+import { CreateSpeciesDto } from './dto/create-species.dto';
+import { UpdateSpeciesDto } from './dto/update-species.dto';
+import { QuerySpeciesDto } from './dto/query-species.dto';
 
 @Injectable()
 export class SpeciesService {
   constructor(
     @InjectRepository(Species)
-    private repo:Repository<Species>,
+    private speciesRepository: Repository<Species>,
   ) {}
 
-  findAll(category?:string) {
-    const query = this.repo.createQueryBuilder('s');
-    if (category) query.where('s.category = :category', { category });
-    return query.getMany();
+  async findAll(query: QuerySpeciesDto) {
+    const { limit = 10, offset = 0, search, category } = query;
+
+    const where: any = {};
+    if (search) {
+      where.name = Like(`%${search}%`);
+    }
+    if (category) {
+      where.category = category;
+    }
+
+    const [data, total] = await this.speciesRepository.findAndCount({
+      where,
+      take: limit,
+      skip: offset,
+      order: { id: 'ASC' },
+    });
+
+    return {
+      data,
+      meta: {
+        total,
+        limit,
+        offset,
+        count: data.length,
+      },
+    };
   }
 
-  findOne(id:number) {
-    return this.repo.findOne({ where:{ id }, relations:['animals'] });
+  async findOne(id: number) {
+    const species = await this.speciesRepository.findOne({
+      where: { id },
+      relations: ['animals'],
+    });
+    if (!species) {
+      throw new NotFoundException(`Species with ID ${id} not found`);
+    }
+    return { data: species };
   }
 
-  create(data:Partial<Species>) {
-    return this.repo.save(data);
+  async create(createSpeciesDto: CreateSpeciesDto) {
+    const species = this.speciesRepository.create(createSpeciesDto);
+    await this.speciesRepository.save(species);
+    return { data: species };
   }
 
-  async update(id:number, data:Partial<Species>) {
-    await this.repo.update(id, data);
-    return this.findOne(id);
+  async update(id: number, updateSpeciesDto: UpdateSpeciesDto) {
+    await this.findOne(id); // Sprawdź czy istnieje
+    await this.speciesRepository.update(id, updateSpeciesDto);
+    const updated = await this.findOne(id);
+    return updated;
   }
 
-  remove(id:number) {
-    return this.repo.delete(id);
+  async remove(id: number) {
+    const species = await this.findOne(id);
+    await this.speciesRepository.remove(species.data);
+    return { message: 'Species deleted successfully' };
   }
 }
