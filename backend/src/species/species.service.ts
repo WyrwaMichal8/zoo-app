@@ -71,4 +71,28 @@ export class SpeciesService {
     await this.speciesRepository.remove(species.data);
     return { message: 'Species deleted successfully' };
   }
+
+
+async getSpeciesAnimals(id: number) {
+  const species = await this.speciesRepository.findOne({
+    where: { id },
+    relations: ['animals'],
+  });
+  
+  if (!species) {
+    throw new NotFoundException(`Species with ID ${id} not found`);
+  }
+
+  return {
+    data: {
+      species: {
+        id: species.id,
+        name: species.name,
+        scientificName: species.scientificName,
+      },
+      animals: species.animals,
+    },
+  };
+}
+
 }

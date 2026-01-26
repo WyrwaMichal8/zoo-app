@@ -18,10 +18,10 @@ export class SpeciesController {
     return this.speciesService.findAll(query);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Pobierz szczegóły gatunku' })
-  findOne(@Param('id') id: string) {
-    return this.speciesService.findOne(+id);
+  @Get(':id/animals')
+  @ApiOperation({ summary: 'Pobierz zwierzęta danego gatunku' })
+  async getSpeciesAnimals(@Param('id') id: string) {
+    return this.speciesService.getSpeciesAnimals(+id);
   }
 
   @Post()

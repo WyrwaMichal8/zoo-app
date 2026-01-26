@@ -1,8 +1,11 @@
 FROM node:18-alpine
+
 WORKDIR /app
+
 COPY package*.json ./
 RUN npm install
+
 COPY . .
-RUN npm run build
-CMD ["npm", "run", "start:dev"]
-EXPOSE 3000
+
+# Uruchom seed po starcie
+CMD npm run build && npm run seed && npm run start:prod

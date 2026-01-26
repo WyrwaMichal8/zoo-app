@@ -1,31 +1,36 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
-import { Species } from './entities/species.entity';
-import { CreateSpeciesDto } from './dto/create-species.dto';
-import { UpdateSpeciesDto } from './dto/update-species.dto';
-import { QuerySpeciesDto } from './dto/query-species.dto';
+import { Animal } from './entities/animal.entity';
+import { CreateAnimalDto } from './dto/create-animal.dto';
+import { UpdateAnimalDto } from './dto/update-animal.dto';
+import { QueryAnimalDto } from './dto/query-animal.dto';
 
 @Injectable()
-export class SpeciesService {
+export class AnimalsService {
   constructor(
-    @InjectRepository(Species)
-    private speciesRepository: Repository<Species>,
+    @InjectRepository(Animal)
+    private animalRepository: Repository<Animal>,
   ) {}
 
-  async findAll(query: QuerySpeciesDto) {
-    const { limit = 10, offset = 0, search, category } = query;
+  async findAll(query: QueryAnimalDto) {
+    const { limit = 10, offset = 0, search, healthStatus, speciesId } = query;
 
-    const where: any = {};
+    const whereConditions: any = {};
+    
     if (search) {
-      where.name = Like(`%${search}%`);
+      whereConditions.name = Like(`%${search}%`);
     }
-    if (category) {
-      where.category = category;
+    if (healthStatus) {
+      whereConditions.healthStatus = healthStatus;
+    }
+    if (speciesId) {
+      whereConditions.speciesId = speciesId;
     }
 
-    const [data, total] = await this.speciesRepository.findAndCount({
-      where,
+    const [data, total] = await this.animalRepository.findAndCount({
+      where: whereConditions,
+      relations: ['species'],
       take: limit,
       skip: offset,
       order: { id: 'ASC' },
@@ -43,32 +48,35 @@ export class SpeciesService {
   }
 
   async findOne(id: number) {
-    const species = await this.speciesRepository.findOne({
+    const animal = await this.animalRepository.findOne({
       where: { id },
-      relations: ['animals'],
+      relations: ['species'],
     });
-    if (!species) {
-      throw new NotFoundException(`Species with ID ${id} not found`);
+    
+    if (!animal) {
+      throw new NotFoundException(`Animal with ID ${id} not found`);
     }
-    return { data: species };
+    
+    return { data: animal };
   }
 
-  async create(createSpeciesDto: CreateSpeciesDto) {
-    const species = this.speciesRepository.create(createSpeciesDto);
-    await this.speciesRepository.save(species);
-    return { data: species };
+  async create(createAnimalDto: CreateAnimalDto) {
+    const animal = this.animalRepository.create(createAnimalDto);
+    await this.animalRepository.save(animal);
+    
+    // Zwróć ze relacją species
+    return this.findOne(animal.id);
   }
 
-  async update(id: number, updateSpeciesDto: UpdateSpeciesDto) {
+  async update(id: number, updateAnimalDto: UpdateAnimalDto) {
     await this.findOne(id); // Sprawdź czy istnieje
-    await this.speciesRepository.update(id, updateSpeciesDto);
-    const updated = await this.findOne(id);
-    return updated;
+    await this.animalRepository.update(id, updateAnimalDto);
+    return this.findOne(id);
   }
 
   async remove(id: number) {
-    const species = await this.findOne(id);
-    await this.speciesRepository.remove(species.data);
-    return { message: 'Species deleted successfully' };
+    const animal = await this.findOne(id);
+    await this.animalRepository.remove(animal.data);
+    return { message: 'Animal deleted successfully' };
   }
 }
